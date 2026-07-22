@@ -153,10 +153,10 @@
       <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
         <div class="relative flex-shrink-0">
           <canvas id="donutChart" width="120" height="120" style="width:120px;height:120px"></canvas>
-          <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <div class="absolute inset-0 flex flex-col items-center justify-center px-2">
             <span class="text-xs text-gray-400 leading-tight">Gastado</span>
-            <span id="donutAmount" class="text-base font-bold text-gray-800 leading-tight">0 €</span>
-            <span id="donutPct" class="text-xs text-gray-400 leading-tight"></span>
+            <span id="donutAmount" class="text-sm font-bold text-gray-800 leading-tight text-center"></span>
+            <span id="donutPct" class="text-gray-400 leading-tight text-center" style="font-size:10px"></span>
           </div>
         </div>
         <div class="flex-1 w-full">
@@ -533,7 +533,7 @@
 
       const k = total >= 1000 ? `${(total/1000).toFixed(1)}k€` : `${fmt(total)} €`;
       document.getElementById('donutAmount').textContent = k;
-      document.getElementById('donutPct').textContent = hasBudget ? `${pct}% del presup.` : '';
+      document.getElementById('donutPct').textContent = hasBudget ? `${pct}%` : '';
 
       document.getElementById('summaryLabel').textContent = `Gastos · ${MONTH_NAMES[m-1]} ${y}`;
       document.getElementById('summaryTotal').textContent = `${fmt(total)} €`;
