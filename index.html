@@ -367,23 +367,27 @@
       if (error) throw error;
     }
 
-    async function dbSaveBudget(amount) {
-      const { error } = await db.from('budget').upsert({ id: 1, amount });
+    async function dbSaveBudget(month, amount) {
+      const { error } = await db.from('budget').upsert({ month, amount });
       if (error) throw error;
+    }
+
+    async function dbLoadBudget(month) {
+      const { data, error } = await db.from('budget').select('amount').eq('month', month).maybeSingle();
+      if (error) throw error;
+      return data?.amount || 0;
     }
 
     async function loadData() {
       setLoading(true);
       try {
-        const [{ data: expData, error: expErr }, { data: budData, error: budErr }] = await Promise.all([
+        const [{ data: expData, error: expErr }, budgetAmount] = await Promise.all([
           db.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-          db.from('budget').select('amount').eq('id', 1).maybeSingle(),
+          dbLoadBudget(currentMonth),
         ]);
         if (expErr) throw expErr;
-        if (budErr) throw budErr;
-        // map description → desc for the rest of the app
         expenses     = (expData || []).map(e => ({ ...e, desc: e.description }));
-        BUDGET_TOTAL = budData?.amount || 0;
+        BUDGET_TOTAL = budgetAmount;
       } catch (err) {
         console.error('Error al cargar datos:', err);
         const msg = err?.message || err?.details || JSON.stringify(err);
@@ -574,7 +578,7 @@
       const btn = event.submitter;
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
-        await dbSaveBudget(val);
+        await dbSaveBudget(currentMonth, val);
         BUDGET_TOTAL = val;
         updateBudgetBtn();
         closeBudgetModal();
@@ -690,9 +694,11 @@
     }
 
     // ── MONTH SELECT ─────────────────────────────────────────────────
-    document.getElementById('monthSelect').addEventListener('change', function() {
+    document.getElementById('monthSelect').addEventListener('change', async function() {
       currentMonth = this.value; currentPeriod = 'month';
       document.getElementById('periodLabel').textContent = 'Todo el mes';
+      try { BUDGET_TOTAL = await dbLoadBudget(currentMonth); } catch(_) {}
+      updateBudgetBtn();
       renderAll(currentMonth);
     });
     (function buildMonthSelect() {
