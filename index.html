@@ -243,12 +243,12 @@
   <div id="modal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
     <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl">
       <div class="flex justify-between items-center mb-5">
-        <h3 class="text-base font-semibold text-gray-800">Añadir gasto</h3>
+        <h3 id="modalTitle" class="text-base font-semibold text-gray-800">Añadir gasto</h3>
         <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <form id="expenseForm" onsubmit="addExpense(event)" class="space-y-4">
+      <form id="expenseForm" onsubmit="submitExpense(event)" class="space-y-4">
         <div>
           <label class="text-xs font-medium text-gray-500 block mb-1">Comercio / descripción</label>
           <input id="f-desc" type="text" required placeholder="Ej: Mercadona" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
@@ -274,6 +274,7 @@
             <option value="educacion">Educación</option>
             <option value="compras">Compras</option>
             <option value="facturas">Facturas</option>
+            <option value="creditos">Créditos</option>
             <option value="otras">Otras</option>
           </select>
         </div>
@@ -305,6 +306,7 @@
       educacion:  { label: 'Educación',  color: '#3b82f6', bg: '#eff6ff', icon: '📚', budget: 120  },
       compras:    { label: 'Compras',    color: '#eab308', bg: '#fefce8', icon: '🛍️', budget: 200  },
       facturas:   { label: 'Facturas',   color: '#8b5cf6', bg: '#f5f3ff', icon: '📄', budget: 240  },
+      creditos:   { label: 'Créditos',   color: '#ec4899', bg: '#fdf2f8', icon: '💳', budget: 300  },
       otras:      { label: 'Otras',      color: '#94a3b8', bg: '#f8fafc', icon: '📦', budget: 100  },
     };
 
@@ -503,8 +505,11 @@
               <div class="text-sm font-medium text-gray-800 truncate">${e.desc}</div>
               <div class="text-xs text-gray-400">${cat.label} · ${parseInt(d)} ${mn[parseInt(m)]}</div>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
               <span class="text-sm font-semibold text-gray-700">−${fmt(e.amount)} €</span>
+              <button onclick="openEditModal('${e.id}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-blue-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
               <button onclick="deleteExpense('${e.id}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-red-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
               </button>
@@ -589,38 +594,78 @@
     }
 
     // ── MODAL GASTO ──────────────────────────────────────────────────
+    let editingId = null;
+
     function openModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = 'Añadir gasto';
+      document.getElementById('expenseForm').reset();
+      document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
       const m = document.getElementById('modal');
       m.classList.remove('hidden'); m.classList.add('flex');
-      document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    }
+    function openEditModal(id) {
+      const expense = expenses.find(e => e.id === id);
+      if (!expense) return;
+      editingId = id;
+      document.getElementById('modalTitle').textContent = 'Editar gasto';
+      document.getElementById('f-desc').value   = expense.desc;
+      document.getElementById('f-amount').value = expense.amount;
+      document.getElementById('f-date').value   = expense.date;
+      document.getElementById('f-cat').value    = expense.cat;
+      document.getElementById('f-note').value   = expense.note || '';
+      const m = document.getElementById('modal');
+      m.classList.remove('hidden'); m.classList.add('flex');
     }
     function closeModal() {
       const m = document.getElementById('modal');
       m.classList.add('hidden'); m.classList.remove('flex');
       document.getElementById('expenseForm').reset();
+      editingId = null;
     }
     document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
-    async function addExpense(event) {
+    async function submitExpense(event) {
       event.preventDefault();
       const amount = parseFloat(document.getElementById('f-amount').value);
       if (!amount || amount <= 0) return;
-      const expense = {
-        id:     crypto.randomUUID(),
-        desc:   document.getElementById('f-desc').value.trim(),
-        amount,
-        cat:    document.getElementById('f-cat').value,
-        date:   document.getElementById('f-date').value,
-        note:   document.getElementById('f-note').value.trim(),
-      };
       const btn = event.submitter;
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
-        await dbInsertExpense(expense);
-        expenses.unshift(expense);
+        if (editingId) {
+          const updated = {
+            id:     editingId,
+            desc:   document.getElementById('f-desc').value.trim(),
+            amount,
+            cat:    document.getElementById('f-cat').value,
+            date:   document.getElementById('f-date').value,
+            note:   document.getElementById('f-note').value.trim(),
+          };
+          const { error } = await db.from('expenses').update({
+            description: updated.desc,
+            amount:      updated.amount,
+            cat:         updated.cat,
+            date:        updated.date,
+            note:        updated.note,
+          }).eq('id', editingId);
+          if (error) throw error;
+          expenses = expenses.map(e => e.id === editingId ? updated : e);
+          showToast('Gasto actualizado');
+        } else {
+          const expense = {
+            id:     crypto.randomUUID(),
+            desc:   document.getElementById('f-desc').value.trim(),
+            amount,
+            cat:    document.getElementById('f-cat').value,
+            date:   document.getElementById('f-date').value,
+            note:   document.getElementById('f-note').value.trim(),
+          };
+          await dbInsertExpense(expense);
+          expenses.unshift(expense);
+          showToast('Gasto añadido');
+        }
         closeModal();
         renderAll(currentMonth);
-        showToast('Gasto añadido');
       } catch (err) {
         console.error(err);
         showToast('Error al guardar el gasto', true);
