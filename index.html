@@ -381,13 +381,10 @@
     async function loadData() {
       setLoading(true);
       try {
-        const [{ data: expData, error: expErr }, budgetAmount] = await Promise.all([
-          db.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }),
-          dbLoadBudget(currentMonth),
-        ]);
+        const { data: expData, error: expErr } = await db.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
         if (expErr) throw expErr;
         expenses     = (expData || []).map(e => ({ ...e, desc: e.description }));
-        BUDGET_TOTAL = budgetAmount;
+        BUDGET_TOTAL = await dbLoadBudget(currentMonth);
       } catch (err) {
         console.error('Error al cargar datos:', err);
         const msg = err?.message || err?.details || JSON.stringify(err);
