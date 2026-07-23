@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -140,7 +141,11 @@
             <button onclick="setPeriod('15days','Últimos 15 días')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Últimos 15 días</button>
           </div>
         </div>
-        <button onclick="openModal()" class="px-3 sm:px-4 py-2.5 rounded-xl bg-gray-900 text-sm text-white shadow-sm hover:bg-gray-800 transition flex items-center gap-2">
+        <button onclick="openExportModal()" class="px-3 sm:px-4 py-2.5 rounded-xl bg-white text-sm text-gray-600 border border-gray-100 shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span class="hidden sm:inline">Exportar</span>
+          </button>
+          <button onclick="openModal()" class="px-3 sm:px-4 py-2.5 rounded-xl bg-gray-900 text-sm text-white shadow-sm hover:bg-gray-800 transition flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span class="hidden sm:inline">Añadir gasto</span>
           <span class="sm:hidden">Añadir</span>
@@ -216,6 +221,32 @@
       <div class="card shadow-sm divide-y divide-gray-50" id="movimientosList"></div>
     </div>
   </main>
+
+  <!-- MODAL EXPORTAR -->
+  <div id="exportModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Exportar a Excel</h3>
+        <button onclick="closeExportModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form onsubmit="exportExcel(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Fecha inicio</label>
+          <input id="exp-from" type="date" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Fecha fin</label>
+          <input id="exp-to" type="date" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Descargar Excel
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL PRESUPUESTO -->
   <div id="budgetModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
@@ -768,6 +799,93 @@
       applyDark(isDark);
     }
     if (localStorage.getItem('gastos_dark') === '1') applyDark(true);
+
+    // ── EXPORT ──────────────────────────────────────────────────────
+    function openExportModal() {
+      const [y, m] = currentMonth.split('-');
+      const lastDay = new Date(y, m, 0).getDate();
+      document.getElementById('exp-from').value = `${currentMonth}-01`;
+      document.getElementById('exp-to').value   = `${currentMonth}-${String(lastDay).padStart(2,'0')}`;
+      const modal = document.getElementById('exportModal');
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeExportModal() {
+      const modal = document.getElementById('exportModal');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+    }
+    document.getElementById('exportModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExportModal(); });
+
+    function exportExcel(event) {
+      event.preventDefault();
+      const from = document.getElementById('exp-from').value;
+      const to   = document.getElementById('exp-to').value;
+      if (from > to) { showToast('La fecha inicio debe ser anterior a la fecha fin', true); return; }
+
+      const filtered = expenses
+        .filter(e => e.date >= from && e.date <= to && e.amount > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (!filtered.length) { showToast('No hay gastos en ese período', true); return; }
+
+      const wb = XLSX.utils.book_new();
+
+      // ── HOJA 1: Detalle de gastos ──
+      const detailRows = [
+        ['Fecha', 'Descripción', 'Categoría', 'Importe (€)', 'Nota']
+      ];
+      filtered.forEach(e => {
+        const [y, m, d] = e.date.split('-');
+        detailRows.push([
+          `${d}/${m}/${y}`,
+          e.desc,
+          CATEGORIES[e.cat]?.label || e.cat,
+          e.amount,
+          e.note || '',
+        ]);
+      });
+      // Fila de total
+      detailRows.push(['', '', 'TOTAL', filtered.reduce((s, e) => s + e.amount, 0), '']);
+
+      const ws1 = XLSX.utils.aoa_to_sheet(detailRows);
+
+      // Anchos de columna
+      ws1['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 25 }];
+
+      // Estilo cabecera (negrita) — SheetJS community no soporta estilos completos, usamos nombres de columna en mayúscula
+      XLSX.utils.book_append_sheet(wb, ws1, 'Gastos');
+
+      // ── HOJA 2: Resumen por categoría ──
+      const totals = {};
+      Object.keys(CATEGORIES).forEach(k => totals[k] = 0);
+      filtered.forEach(e => { if (totals[e.cat] !== undefined) totals[e.cat] += e.amount; });
+
+      const summaryRows = [['Categoría', 'Total (€)', '% del período']];
+      const grandTotal  = filtered.reduce((s, e) => s + e.amount, 0);
+
+      Object.entries(CATEGORIES).forEach(([key, cat]) => {
+        const total = totals[key] || 0;
+        if (total > 0) {
+          summaryRows.push([
+            cat.label,
+            total,
+            grandTotal > 0 ? Math.round((total / grandTotal) * 100) + '%' : '0%',
+          ]);
+        }
+      });
+      summaryRows.push(['TOTAL', grandTotal, '100%']);
+
+      const ws2 = XLSX.utils.aoa_to_sheet(summaryRows);
+      ws2['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }];
+
+      XLSX.utils.book_append_sheet(wb, ws2, 'Por categoría');
+
+      // Nombre del archivo
+      const fileName = `gastos_${from}_${to}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      closeExportModal();
+      showToast('Excel descargado');
+    }
 
     // ── INIT ─────────────────────────────────────────────────────────
     loadData();
