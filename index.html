@@ -654,6 +654,7 @@
             <option value="compras">Compras</option>
             <option value="facturas">Facturas</option>
             <option value="creditos">Créditos</option>
+            <option value="ahorro">Ahorro</option>
             <option value="otras">Otras</option>
           </select>
         </div>
@@ -704,6 +705,7 @@
       compras:    { label: 'Compras',    color: '#eab308', bg: '#fefce8', icon: '🛍️', budget: 200  },
       facturas:   { label: 'Facturas',   color: '#8b5cf6', bg: '#f5f3ff', icon: '📄', budget: 240  },
       creditos:   { label: 'Créditos',   color: '#ec4899', bg: '#fdf2f8', icon: '💳', budget: 300  },
+      ahorro:     { label: 'Ahorro',     color: '#14b8a6', bg: '#f0fdfa', icon: '🐷', budget: 150  },
       otras:      { label: 'Otras',      color: '#94a3b8', bg: '#f8fafc', icon: '📦', budget: 100  },
     };
 
@@ -1478,6 +1480,11 @@
             const expense = { id: crypto.randomUUID(), desc, amount, cat, date, note };
             await dbInsertExpense(expense);
             expenses.unshift(expense);
+            if (cat === 'ahorro') {
+              const saving = { id: crypto.randomUUID(), amount, date, note: desc };
+              await dbInsertSaving(saving);
+              savings.unshift(saving);
+            }
             showToast('Gasto añadido');
           }
         }
