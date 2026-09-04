@@ -1318,8 +1318,7 @@
     (function initYearMonthSelects() {
       const yearSel  = document.getElementById('yearSelect');
       const curYear  = _now.getFullYear();
-      const minYear  = 2020;
-      for (let y = curYear + 5; y >= minYear; y--) {
+      for (let y = curYear + 5; y >= curYear; y--) {
         yearSel.appendChild(new Option(y, y));
       }
       yearSel.value = curYear;
