@@ -944,8 +944,8 @@
 
       const vsEl = document.getElementById('summaryVsPrev');
       vsEl.textContent = vsPrev !== null ? `${vsPrev >= 0 ? '+' : ''}${vsPrev}%` : '—';
-      vsEl.className = `text-base sm:text-lg font-semibold ${vsPrev === null ? 'text-gray-400' : vsPrev <= 0 ? 'text-red-400' : 'text-emerald-500'}`;
-      document.getElementById('summaryVsPrevLabel').textContent = `VS ${prevName}`;
+      vsEl.className = `text-base sm:text-lg font-semibold ${vsPrev === null ? 'text-gray-400' : vsPrev > 0 ? 'text-red-400' : 'text-emerald-500'}`;
+      document.getElementById('summaryVsPrevLabel').textContent = `Gasto vs ${prevName}`;
 
       const paceRow = document.getElementById('summaryPaceRow');
       const isCurrentMonth = month === `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
