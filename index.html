@@ -429,6 +429,22 @@
           <label class="text-xs font-medium text-gray-500 block mb-1">Nota (opcional)</label>
           <input id="f-note" type="text" placeholder="Añade una nota..." class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
         </div>
+        <div id="f-recurring-wrap">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input id="f-recurring" type="checkbox" onchange="toggleRecurringFields()" class="w-4 h-4 rounded border-gray-300" />
+            <span class="text-sm text-gray-700">Gasto recurrente</span>
+          </label>
+          <div id="f-recurring-fields" class="hidden grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <label class="text-xs font-medium text-gray-500 block mb-1">Día del mes</label>
+              <input id="f-recurring-day" type="number" min="1" max="31" placeholder="Ej: 1" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-500 block mb-1">Repetir hasta</label>
+              <input id="f-recurring-until" type="month" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+            </div>
+          </div>
+        </div>
         <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
           Guardar gasto
         </button>
@@ -609,6 +625,19 @@
         note:        expense.note || '',
         user_id:     currentUser.id,
       });
+      if (error) throw error;
+    }
+
+    async function dbInsertExpenses(expenseList) {
+      const { error } = await db.from('expenses').insert(expenseList.map(expense => ({
+        id:          expense.id,
+        description: expense.desc,
+        amount:      expense.amount,
+        cat:         expense.cat,
+        date:        expense.date,
+        note:        expense.note || '',
+        user_id:     currentUser.id,
+      })));
       if (error) throw error;
     }
 
@@ -843,11 +872,18 @@
     // ── MODAL GASTO ──────────────────────────────────────────────────
     let editingId = null;
 
+    function toggleRecurringFields() {
+      const on = document.getElementById('f-recurring').checked;
+      document.getElementById('f-recurring-fields').classList.toggle('hidden', !on);
+    }
+
     function openModal() {
       editingId = null;
       document.getElementById('modalTitle').textContent = 'Añadir gasto';
       document.getElementById('expenseForm').reset();
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('f-recurring-fields').classList.add('hidden');
+      document.getElementById('f-recurring-wrap').classList.remove('hidden');
       const m = document.getElementById('modal');
       m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -861,6 +897,9 @@
       document.getElementById('f-date').value   = expense.date;
       document.getElementById('f-cat').value    = expense.cat;
       document.getElementById('f-note').value   = expense.note || '';
+      document.getElementById('f-recurring').checked = false;
+      document.getElementById('f-recurring-fields').classList.add('hidden');
+      document.getElementById('f-recurring-wrap').classList.add('hidden');
       const m = document.getElementById('modal');
       m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -868,9 +907,29 @@
       const m = document.getElementById('modal');
       m.classList.add('hidden'); m.classList.remove('flex');
       document.getElementById('expenseForm').reset();
+      document.getElementById('f-recurring-fields').classList.add('hidden');
+      document.getElementById('f-recurring-wrap').classList.remove('hidden');
       editingId = null;
     }
     document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+    function lastDayOfMonth(year, month1to12) {
+      return new Date(year, month1to12, 0).getDate();
+    }
+
+    function buildRecurringDates(startDate, day, untilMonth) {
+      const [sy, sm] = startDate.split('-').map(Number);
+      const [uy, um] = untilMonth.split('-').map(Number);
+      const dates = [];
+      let y = sy, m = sm;
+      while (y < uy || (y === uy && m <= um)) {
+        const d = Math.min(day, lastDayOfMonth(y, m));
+        dates.push(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+      return dates;
+    }
 
     async function submitExpense(event) {
       event.preventDefault();
@@ -899,17 +958,31 @@
           expenses = expenses.map(e => e.id === editingId ? updated : e);
           showToast('Gasto actualizado');
         } else {
-          const expense = {
-            id:     crypto.randomUUID(),
-            desc:   document.getElementById('f-desc').value.trim(),
-            amount,
-            cat:    document.getElementById('f-cat').value,
-            date:   document.getElementById('f-date').value,
-            note:   document.getElementById('f-note').value.trim(),
-          };
-          await dbInsertExpense(expense);
-          expenses.unshift(expense);
-          showToast('Gasto añadido');
+          const desc   = document.getElementById('f-desc').value.trim();
+          const cat    = document.getElementById('f-cat').value;
+          const date   = document.getElementById('f-date').value;
+          const note   = document.getElementById('f-note').value.trim();
+          const isRecurring = document.getElementById('f-recurring').checked;
+
+          if (isRecurring) {
+            const day   = parseInt(document.getElementById('f-recurring-day').value, 10);
+            const until = document.getElementById('f-recurring-until').value;
+            if (!day || day < 1 || day > 31) { showToast('Indica un día del mes válido (1-31)', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
+            if (!until) { showToast('Indica el mes en el que finaliza', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
+            const dates = buildRecurringDates(date, day, until);
+            if (!dates.length) { showToast('El mes de fin debe ser posterior a la fecha inicial', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
+            const newExpenses = dates.map(d => ({
+              id: crypto.randomUUID(), desc, amount, cat, date: d, note,
+            }));
+            await dbInsertExpenses(newExpenses);
+            expenses.unshift(...newExpenses);
+            showToast(`${newExpenses.length} gastos recurrentes añadidos`);
+          } else {
+            const expense = { id: crypto.randomUUID(), desc, amount, cat, date, note };
+            await dbInsertExpense(expense);
+            expenses.unshift(expense);
+            showToast('Gasto añadido');
+          }
         }
         closeModal();
         renderAll(currentMonth);
