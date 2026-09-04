@@ -675,10 +675,31 @@
       await db.auth.signOut();
     }
 
+    // ── CIERRE DE SESIÓN POR INACTIVIDAD ────────────────────────────
+    const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+    let inactivityTimer = null;
+
+    async function handleInactivityLogout() {
+      if (!currentUser) return;
+      await db.auth.signOut();
+      showToast('Sesión cerrada por inactividad');
+    }
+
+    function resetInactivityTimer() {
+      clearTimeout(inactivityTimer);
+      if (!currentUser) return;
+      inactivityTimer = setTimeout(handleInactivityLogout, INACTIVITY_LIMIT_MS);
+    }
+
+    ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'wheel'].forEach(evt => {
+      document.addEventListener(evt, resetInactivityTimer, { passive: true });
+    });
+
     db.auth.onAuthStateChange(async (event, session) => {
       currentUser = session?.user || null;
       if (currentUser) {
         showLoginScreen(false);
+        resetInactivityTimer();
         // Cargar nombre del perfil
         const { data: profile } = await db.from('profiles').select('nombre').eq('id', currentUser.id).maybeSingle();
         const nombre = profile?.nombre || currentUser.email.split('@')[0];
@@ -688,6 +709,7 @@
           `${DAY_NAMES[_now.getDay()]} ${_now.getDate()} ${MONTH_NAMES[_now.getMonth()].toLowerCase()}`;
         loadData();
       } else {
+        clearTimeout(inactivityTimer);
         showLoginScreen(true);
         showLoginForm();
         expenses = []; BUDGET_TOTAL = 0;
