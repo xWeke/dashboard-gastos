@@ -692,9 +692,9 @@
     }
 
     async function dbDeleteExpensesFrom(groupId, afterDate) {
-      const { error } = await db.from('expenses').delete()
-        .eq('recurring_group_id', groupId)
-        .gt('date', afterDate);
+      let query = db.from('expenses').delete().eq('recurring_group_id', groupId);
+      if (afterDate) query = query.gt('date', afterDate);
+      const { error } = await query;
       if (error) throw error;
     }
 
@@ -903,10 +903,13 @@
     }
 
     async function cancelRecurringSeries(groupId, afterDate) {
-      if (!confirm('Se eliminarán los gastos futuros de esta serie recurrente (a partir del mes siguiente). Este gasto y el historial pasado se mantienen. ¿Continuar?')) return;
+      const msg = afterDate
+        ? 'Se eliminarán los gastos futuros de esta serie recurrente (a partir del mes siguiente). Este gasto y el historial pasado se mantienen. ¿Continuar?'
+        : 'Esta serie recurrente aún no ha generado ningún gasto pasado; se eliminará por completo. ¿Continuar?';
+      if (!confirm(msg)) return;
       try {
         await dbDeleteExpensesFrom(groupId, afterDate);
-        expenses = expenses.filter(e => !(e.recurring_group_id === groupId && e.date > afterDate));
+        expenses = expenses.filter(e => !(e.recurring_group_id === groupId && (!afterDate || e.date > afterDate)));
         renderAll(currentMonth);
         showToast('Serie recurrente cancelada');
       } catch (err) {
@@ -1083,13 +1086,17 @@
         list.sort((a, b) => a.date.localeCompare(b.date));
         const future  = list.filter(e => e.date > todayStr);
         const current = list.filter(e => e.date <= todayStr);
-        const anchor  = current.length ? current[current.length - 1] : list[0];
+        const anchor  = current.length ? current[current.length - 1] : null;
+        const display = anchor || list[0];
         return {
           groupId,
-          desc: anchor.desc, amount: anchor.amount, cat: anchor.cat,
+          desc: display.desc, amount: display.amount, cat: display.cat,
           remaining: future.length,
           lastDate: list[list.length - 1].date,
-          anchorDate: anchor.date,
+          // Fecha a partir de la cual borrar al cancelar: si ya hay una cuota
+          // pasada/actual se conserva (borra solo lo posterior); si la serie
+          // entera es futura, no hay nada que conservar y se borra todo.
+          cancelAfterDate: anchor ? anchor.date : null,
         };
       }).filter(s => s.remaining > 0);
     }
@@ -1112,7 +1119,7 @@
               <div class="text-xs text-gray-400">${cat.label} · quedan ${s.remaining} cuota${s.remaining === 1 ? '' : 's'} · fin ${MONTH_NAMES[parseInt(em)-1].slice(0,3)} ${ey}</div>
             </div>
             <span class="text-sm font-semibold text-gray-700">${fmt(s.amount)} €</span>
-            <button onclick="cancelRecurringSeries('${s.groupId}', '${s.anchorDate}'); closeRecurringModal();" title="Cancelar cuotas futuras" class="text-gray-300 hover:text-orange-400">
+            <button onclick="cancelRecurringSeries('${s.groupId}', ${s.cancelAfterDate ? `'${s.cancelAfterDate}'` : 'null'}).then(closeRecurringModal)" title="Cancelar cuotas futuras" class="text-gray-300 hover:text-orange-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
             </button>
           </div>`;
