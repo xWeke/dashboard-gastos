@@ -383,6 +383,36 @@
       </div>
       <div class="card shadow-sm divide-y divide-gray-50" id="savingsList"></div>
     </div>
+
+    <!-- INVERSIONES -->
+    <div class="flex items-center justify-between pt-2">
+      <h2 class="text-base font-semibold text-gray-800">Inversiones</h2>
+      <button onclick="openInvestmentModal()" class="px-3 sm:px-4 py-2.5 rounded-xl bg-white text-sm text-gray-600 border border-gray-100 shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="hidden sm:inline">Añadir compra</span>
+        <span class="sm:hidden">Añadir</span>
+      </button>
+    </div>
+
+    <div class="card p-6 shadow-sm">
+      <div class="flex flex-col sm:flex-row items-center justify-around gap-4 text-center">
+        <div>
+          <div class="text-xs font-medium text-gray-400 tracking-wider uppercase mb-1">Valor actual</div>
+          <div id="investTotalValue" class="text-2xl font-bold text-gray-900">0,00 €</div>
+        </div>
+        <div>
+          <div class="text-xs font-medium text-gray-400 tracking-wider uppercase mb-1">Invertido</div>
+          <div id="investTotalCost" class="text-2xl font-bold text-gray-400">0,00 €</div>
+        </div>
+        <div>
+          <div class="text-xs font-medium text-gray-400 tracking-wider uppercase mb-1">Rentabilidad</div>
+          <div id="investReturn" class="text-2xl font-bold text-gray-400">—</div>
+        </div>
+      </div>
+      <div id="investUpdated" class="text-xs text-gray-400 text-center mt-3"></div>
+    </div>
+
+    <div id="investmentPositions" class="space-y-3"></div>
   </main>
 
   <!-- MODAL AÑADIR AHORRO -->
@@ -413,6 +443,59 @@
         </div>
         <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
           Guardar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL AÑADIR COMPRA (INVERSIONES) -->
+  <div id="investmentModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Añadir compra</h3>
+        <button onclick="closeInvestmentModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="investmentForm" onsubmit="submitInvestment(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">ETF</label>
+          <select id="iv-preset" onchange="applyInvestmentPreset()" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none bg-white pr-8 mb-2">
+            <option value="">Elegir de la lista o rellenar a mano...</option>
+            <option value="VWCE.DE|IE00BK5BQT80|Vanguard FTSE All-World UCITS ETF USD (Acc)">Vanguard FTSE All-World UCITS ETF USD (Acc) — VWCE</option>
+            <option value="IUSN.DE|IE00BF4RFH31|iShares MSCI World Small Cap UCITS ETF USD (Acc)">iShares MSCI World Small Cap UCITS ETF USD (Acc) — IUSN</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Nombre</label>
+          <input id="iv-name" type="text" required placeholder="Ej: Vanguard FTSE All-World..." class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Ticker (Yahoo Finance)</label>
+            <input id="iv-ticker" type="text" required placeholder="Ej: VWCE.DE" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">ISIN</label>
+            <input id="iv-isin" type="text" required placeholder="Ej: IE00BK5BQT80" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Participaciones</label>
+            <input id="iv-shares" type="number" required min="0.0001" step="0.0001" placeholder="Ej: 5" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Precio pagado (€/ud)</label>
+            <input id="iv-price" type="number" required min="0.01" step="0.01" placeholder="Ej: 150,00" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Fecha</label>
+          <input id="iv-date" type="date" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
+          Guardar compra
         </button>
       </form>
     </div>
@@ -606,11 +689,10 @@
 
   <script>
     // ── SUPABASE ─────────────────────────────────────────────────────
+    const SUPABASE_URL = 'https://xslyugmpymyarehsewzi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbHl1Z21weW15YXJlaHNld3ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjU2ODAsImV4cCI6MjA5MzgwMTY4MH0.R3b93w7oyDyf5b2t2b2hOnyxpSAzcp4zYJZ0N5wQHTQ';
     const { createClient } = supabase;
-    const db = createClient(
-      'https://xslyugmpymyarehsewzi.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbHl1Z21weW15YXJlaHNld3ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjU2ODAsImV4cCI6MjA5MzgwMTY4MH0.R3b93w7oyDyf5b2t2b2hOnyxpSAzcp4zYJZ0N5wQHTQ'
-    );
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ── DATA ─────────────────────────────────────────────────────────
     const CATEGORIES = {
@@ -783,7 +865,7 @@
         clearTimeout(inactivityTimer);
         showLoginScreen(true);
         showLoginForm();
-        expenses = []; BUDGET_TOTAL = 0; savings = [];
+        expenses = []; BUDGET_TOTAL = 0; savings = []; investmentPurchases = []; etfPrices = {};
         showGastosView();
         renderAll(currentMonth);
       }
@@ -904,6 +986,7 @@
         fixedExpenses = await dbLoadFixedExpenses();
         await generatePendingFixedExpenses();
         savings = await dbLoadSavings();
+        investmentPurchases = await dbLoadInvestmentPurchases();
       } catch (err) {
         console.error('Error al cargar datos:', err);
         const msg = err?.message || err?.details || JSON.stringify(err);
@@ -1862,6 +1945,7 @@ new Chart(document.getElementById('chart'), {
       document.getElementById('gastosView').classList.add('hidden');
       document.getElementById('savingsView').classList.remove('hidden');
       renderSavings();
+      renderInvestments();
     }
     function showGastosView() {
       document.getElementById('savingsView').classList.add('hidden');
@@ -1976,6 +2060,161 @@ new Chart(document.getElementById('chart'), {
         showToast('Error al guardar el movimiento', true);
       }
       btn.disabled = false; btn.textContent = 'Guardar';
+    }
+
+    // ── INVERSIONES ──────────────────────────────────────────────────
+    let investmentPurchases = [];
+    let etfPrices = {};
+
+    async function dbLoadInvestmentPurchases() {
+      const { data, error } = await db.from('investment_purchases').select('*').order('date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function dbInsertInvestmentPurchase(p) {
+      const { error } = await db.from('investment_purchases').insert({
+        id: p.id, ticker: p.ticker, isin: p.isin, name: p.name,
+        shares: p.shares, price: p.price, date: p.date, user_id: currentUser.id,
+      });
+      if (error) throw error;
+    }
+
+    async function dbDeleteInvestmentPurchase(id) {
+      const { error } = await db.from('investment_purchases').delete().eq('id', id);
+      if (error) throw error;
+    }
+
+    function getInvestmentPositions() {
+      const byTicker = {};
+      investmentPurchases.forEach(p => {
+        if (!byTicker[p.ticker]) byTicker[p.ticker] = { ticker: p.ticker, isin: p.isin, name: p.name, shares: 0, cost: 0 };
+        byTicker[p.ticker].shares += p.shares;
+        byTicker[p.ticker].cost += p.shares * p.price;
+      });
+      return Object.values(byTicker);
+    }
+
+    async function fetchEtfPrices(tickers) {
+      if (!tickers.length) return;
+      const resp = await fetch(
+        `${SUPABASE_URL}/functions/v1/get-etf-price?tickers=${encodeURIComponent(tickers.join(','))}`,
+        { headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } }
+      );
+      const json = await resp.json();
+      etfPrices = json.prices || {};
+    }
+
+    async function renderInvestments() {
+      const positions = getInvestmentPositions();
+      const tickers = positions.map(p => p.ticker);
+      if (tickers.length) {
+        try { await fetchEtfPrices(tickers); } catch (err) { console.error('Error al obtener precios:', err); }
+      }
+
+      let totalValue = 0, totalCost = 0;
+      const rows = positions.map(pos => {
+        const priceInfo = etfPrices[pos.ticker];
+        const currentPrice = priceInfo?.price;
+        const value = currentPrice != null ? pos.shares * currentPrice : null;
+        if (value != null) totalValue += value;
+        totalCost += pos.cost;
+        const gain = value != null ? value - pos.cost : null;
+        const gainPct = value != null && pos.cost > 0 ? (gain / pos.cost) * 100 : null;
+        return { ...pos, currentPrice, value, gain, gainPct };
+      });
+
+      document.getElementById('investTotalCost').textContent = `${fmt(totalCost)} €`;
+      document.getElementById('investTotalValue').textContent = tickers.length ? `${fmt(totalValue)} €` : '0,00 €';
+
+      const totalGain = totalValue - totalCost;
+      const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : null;
+      const returnEl = document.getElementById('investReturn');
+      if (!tickers.length) {
+        returnEl.textContent = '—';
+        returnEl.className = 'text-2xl font-bold text-gray-400';
+      } else {
+        returnEl.textContent = `${totalGain >= 0 ? '+' : ''}${fmt(totalGain)} € (${totalGainPct >= 0 ? '+' : ''}${totalGainPct.toFixed(1)}%)`;
+        returnEl.className = `text-2xl font-bold ${totalGain >= 0 ? 'text-emerald-500' : 'text-red-400'}`;
+      }
+
+      document.getElementById('investUpdated').textContent = tickers.length
+        ? `Precios de mercado con posible retraso · actualizado ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+        : '';
+
+      const list = document.getElementById('investmentPositions');
+      if (!rows.length) {
+        list.innerHTML = `<div class="card p-6 text-center text-gray-400 text-sm">Aún no has añadido ninguna inversión</div>`;
+        return;
+      }
+      list.innerHTML = rows.map(r => `
+        <div class="card p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm font-semibold text-gray-800 truncate pr-2">${r.name}</div>
+            <span class="text-xs text-gray-400 flex-shrink-0">${r.ticker}</span>
+          </div>
+          <div class="text-xs text-gray-400 mb-3">${r.shares} participaciones · coste ${fmt(r.cost)} €</div>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-lg font-bold text-gray-900">${r.value != null ? fmt(r.value) + ' €' : '—'}</div>
+              ${r.currentPrice != null ? `<div class="text-xs text-gray-400">${fmt(r.currentPrice)} €/ud</div>` : `<div class="text-xs text-red-400">Precio no disponible</div>`}
+            </div>
+            ${r.gain != null ? `
+            <div class="text-right">
+              <div class="text-sm font-semibold ${r.gain >= 0 ? 'text-emerald-500' : 'text-red-400'}">${r.gain >= 0 ? '+' : ''}${fmt(r.gain)} €</div>
+              <div class="text-xs ${r.gain >= 0 ? 'text-emerald-500' : 'text-red-400'}">${r.gainPct >= 0 ? '+' : ''}${r.gainPct.toFixed(1)}%</div>
+            </div>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    function applyInvestmentPreset() {
+      const val = document.getElementById('iv-preset').value;
+      if (!val) return;
+      const [ticker, isin, name] = val.split('|');
+      document.getElementById('iv-ticker').value = ticker;
+      document.getElementById('iv-isin').value = isin;
+      document.getElementById('iv-name').value = name;
+    }
+
+    function openInvestmentModal() {
+      document.getElementById('investmentForm').reset();
+      document.getElementById('iv-date').value = new Date().toISOString().split('T')[0];
+      const m = document.getElementById('investmentModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeInvestmentModal() {
+      const m = document.getElementById('investmentModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+    document.getElementById('investmentModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeInvestmentModal(); });
+
+    async function submitInvestment(event) {
+      event.preventDefault();
+      const shares = parseFloat(document.getElementById('iv-shares').value);
+      const price = parseFloat(document.getElementById('iv-price').value);
+      if (!shares || shares <= 0 || !price || price <= 0) return;
+      const btn = event.submitter;
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        const purchase = {
+          id: crypto.randomUUID(),
+          ticker: document.getElementById('iv-ticker').value.trim(),
+          isin: document.getElementById('iv-isin').value.trim(),
+          name: document.getElementById('iv-name').value.trim(),
+          shares, price,
+          date: document.getElementById('iv-date').value,
+        };
+        await dbInsertInvestmentPurchase(purchase);
+        investmentPurchases.unshift(purchase);
+        closeInvestmentModal();
+        await renderInvestments();
+        showToast('Compra añadida');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al guardar la compra', true);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar compra';
     }
 
     // ── BLOQUEO DE ZOOM (Safari iOS ignora el meta viewport) ──────────
