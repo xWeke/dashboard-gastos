@@ -2065,6 +2065,7 @@ new Chart(document.getElementById('chart'), {
     // ── INVERSIONES ──────────────────────────────────────────────────
     let investmentPurchases = [];
     let etfPrices = {};
+    let etfChartInsts = [];
 
     async function dbLoadInvestmentPurchases() {
       const { data, error } = await db.from('investment_purchases').select('*').order('date', { ascending: false });
@@ -2147,14 +2148,14 @@ new Chart(document.getElementById('chart'), {
         list.innerHTML = `<div class="card p-6 text-center text-gray-400 text-sm">Aún no has añadido ninguna inversión</div>`;
         return;
       }
-      list.innerHTML = rows.map(r => `
+      list.innerHTML = rows.map((r, i) => `
         <div class="card p-4 shadow-sm">
           <div class="flex items-center justify-between mb-1">
             <div class="text-sm font-semibold text-gray-800 truncate pr-2">${r.name}</div>
             <span class="text-xs text-gray-400 flex-shrink-0">${r.ticker}</span>
           </div>
           <div class="text-xs text-gray-400 mb-3">${r.shares} participaciones · coste ${fmt(r.cost)} €</div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between mb-3">
             <div>
               <div class="text-lg font-bold text-gray-900">${r.value != null ? fmt(r.value) + ' €' : '—'}</div>
               ${r.currentPrice != null ? `<div class="text-xs text-gray-400">${fmt(r.currentPrice)} €/ud</div>` : `<div class="text-xs text-red-400">Precio no disponible</div>`}
@@ -2165,7 +2166,37 @@ new Chart(document.getElementById('chart'), {
               <div class="text-xs ${r.gain >= 0 ? 'text-emerald-500' : 'text-red-400'}">${r.gainPct >= 0 ? '+' : ''}${r.gainPct.toFixed(1)}%</div>
             </div>` : ''}
           </div>
+          <canvas id="etfChart-${i}" height="50"></canvas>
         </div>`).join('');
+
+      etfChartInsts.forEach(c => c.destroy());
+      etfChartInsts = [];
+      rows.forEach((r, i) => {
+        const history = etfPrices[r.ticker]?.history;
+        if (!history || !history.length) return;
+        const ctx = document.getElementById(`etfChart-${i}`)?.getContext('2d');
+        if (!ctx) return;
+        const first = history[0].close;
+        const last = history[history.length - 1].close;
+        const isUp = last >= first;
+        etfChartInsts.push(new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: history.map(p => p.t),
+            datasets: [{
+              data: history.map(p => p.close),
+              borderColor: isUp ? '#10b981' : '#f43f5e',
+              backgroundColor: isUp ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
+              fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } },
+            animation: false,
+          }
+        }));
+      });
     }
 
     function applyInvestmentPreset() {
