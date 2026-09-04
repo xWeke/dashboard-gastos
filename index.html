@@ -184,6 +184,9 @@
         <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span id="budgetBtnLabel" class="hidden sm:inline">Establecer presupuesto</span>
       </button>
+      <button onclick="openFixedModal()" title="Cuotas fijas" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a4 4 0 00-8 0v2M5 9h14l1 11H4L5 9z"/></svg>
+      </button>
       <select id="monthSelect" class="text-sm font-medium text-gray-700 bg-transparent border-none cursor-pointer pr-6 pl-1 py-1 rounded-md hover:bg-white/60 transition max-w-[120px] sm:max-w-none"></select>
       <button onclick="openSettingsModal()" title="Ajustes" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
@@ -386,6 +389,20 @@
     </div>
   </div>
 
+  <!-- MODAL CUOTAS FIJAS -->
+  <div id="fixedModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Cuotas fijas</h3>
+        <button onclick="closeFixedModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 mb-4">Gastos que se repiten todos los meses de forma indefinida.</p>
+      <div id="fixedList" class="space-y-2"></div>
+    </div>
+  </div>
+
   <!-- MODAL AÑADIR GASTO -->
   <div id="modal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
     <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl">
@@ -430,20 +447,23 @@
           <input id="f-note" type="text" placeholder="Añade una nota..." class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
         </div>
         <div id="f-recurring-wrap">
-          <label class="flex items-center gap-2 cursor-pointer select-none">
-            <input id="f-recurring" type="checkbox" onchange="toggleRecurringFields()" class="w-4 h-4 rounded border-gray-300" />
-            <span class="text-sm text-gray-700">Gasto recurrente</span>
-          </label>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Tipo de gasto</label>
+          <select id="f-repeat-type" onchange="toggleRecurringFields()" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none bg-white pr-8">
+            <option value="none">Gasto único</option>
+            <option value="recurring">Recurrente (con fecha de fin)</option>
+            <option value="fixed">Cuota fija (todos los meses, sin fin)</option>
+          </select>
           <div id="f-recurring-fields" class="hidden grid grid-cols-2 gap-3 mt-3">
             <div>
               <label class="text-xs font-medium text-gray-500 block mb-1">Día del mes</label>
               <input id="f-recurring-day" type="number" min="1" max="31" placeholder="Ej: 1" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
             </div>
-            <div>
+            <div id="f-recurring-until-wrap">
               <label class="text-xs font-medium text-gray-500 block mb-1">Repetir hasta</label>
               <input id="f-recurring-until" type="month" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
             </div>
           </div>
+          <p id="f-fixed-hint" class="hidden text-xs text-gray-400 mt-2">Se creará como cuota fija mensual. El gasto de este mes se generará automáticamente si el día ya ha llegado.</p>
         </div>
         <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
           Guardar gasto
@@ -630,14 +650,40 @@
 
     async function dbInsertExpenses(expenseList) {
       const { error } = await db.from('expenses').insert(expenseList.map(expense => ({
-        id:          expense.id,
-        description: expense.desc,
-        amount:      expense.amount,
-        cat:         expense.cat,
-        date:        expense.date,
-        note:        expense.note || '',
-        user_id:     currentUser.id,
+        id:               expense.id,
+        description:      expense.desc,
+        amount:           expense.amount,
+        cat:              expense.cat,
+        date:             expense.date,
+        note:             expense.note || '',
+        user_id:          currentUser.id,
+        fixed_expense_id: expense.fixed_expense_id || null,
       })));
+      if (error) throw error;
+    }
+
+    async function dbInsertFixedExpense(fixedExpense) {
+      const { error } = await db.from('fixed_expenses').insert({
+        id:          fixedExpense.id,
+        description: fixedExpense.desc,
+        amount:      fixedExpense.amount,
+        cat:         fixedExpense.cat,
+        note:        fixedExpense.note || '',
+        day:         fixedExpense.day,
+        active:      true,
+        user_id:     currentUser.id,
+      });
+      if (error) throw error;
+    }
+
+    async function dbLoadFixedExpenses() {
+      const { data, error } = await db.from('fixed_expenses').select('*').eq('active', true);
+      if (error) throw error;
+      return (data || []).map(f => ({ ...f, desc: f.description }));
+    }
+
+    async function dbDeactivateFixedExpense(id) {
+      const { error } = await db.from('fixed_expenses').update({ active: false }).eq('id', id);
       if (error) throw error;
     }
 
@@ -657,13 +703,39 @@
       return data?.amount || 0;
     }
 
+    let fixedExpenses = [];
+
+    async function generatePendingFixedExpenses() {
+      const today   = new Date();
+      const y       = today.getFullYear();
+      const m       = today.getMonth() + 1;
+      const curDay  = today.getDate();
+      const monthPrefix = `${y}-${String(m).padStart(2,'0')}`;
+
+      const pending = fixedExpenses.filter(f => {
+        if (f.day > curDay) return false;
+        return !expenses.some(e => e.fixed_expense_id === f.id && e.date.startsWith(monthPrefix));
+      });
+      if (!pending.length) return;
+
+      const newExpenses = pending.map(f => ({
+        id: crypto.randomUUID(), desc: f.desc, amount: f.amount, cat: f.cat, note: f.note,
+        date: `${monthPrefix}-${String(Math.min(f.day, lastDayOfMonth(y, m))).padStart(2,'0')}`,
+        fixed_expense_id: f.id,
+      }));
+      await dbInsertExpenses(newExpenses);
+      expenses.unshift(...newExpenses);
+    }
+
     async function loadData() {
       setLoading(true);
       try {
         const { data: expData, error: expErr } = await db.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
         if (expErr) throw expErr;
-        expenses     = (expData || []).map(e => ({ ...e, desc: e.description }));
-        BUDGET_TOTAL = await dbLoadBudget(currentMonth);
+        expenses      = (expData || []).map(e => ({ ...e, desc: e.description }));
+        BUDGET_TOTAL  = await dbLoadBudget(currentMonth);
+        fixedExpenses = await dbLoadFixedExpenses();
+        await generatePendingFixedExpenses();
       } catch (err) {
         console.error('Error al cargar datos:', err);
         const msg = err?.message || err?.details || JSON.stringify(err);
@@ -869,12 +941,62 @@
       btn.disabled = false; btn.textContent = 'Guardar presupuesto';
     }
 
+    // ── MODAL CUOTAS FIJAS ───────────────────────────────────────────
+    function openFixedModal() {
+      renderFixedList();
+      const m = document.getElementById('fixedModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeFixedModal() {
+      const m = document.getElementById('fixedModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+    document.getElementById('fixedModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFixedModal(); });
+
+    function renderFixedList() {
+      const list = document.getElementById('fixedList');
+      if (!fixedExpenses.length) {
+        list.innerHTML = `<div class="p-4 text-center text-gray-400 text-sm">No tienes cuotas fijas activas</div>`;
+        return;
+      }
+      list.innerHTML = fixedExpenses.map(f => {
+        const cat = CATEGORIES[f.cat];
+        return `
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0" style="background:${cat.bg}">${cat.icon}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">${f.desc}</div>
+              <div class="text-xs text-gray-400">${cat.label} · día ${f.day} de cada mes</div>
+            </div>
+            <span class="text-sm font-semibold text-gray-700">${fmt(f.amount)} €</span>
+            <button onclick="removeFixedExpense('${f.id}')" class="text-gray-300 hover:text-red-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>`;
+      }).join('');
+    }
+
+    async function removeFixedExpense(id) {
+      if (!confirm('¿Eliminar esta cuota fija? Los gastos ya generados no se eliminarán.')) return;
+      try {
+        await dbDeactivateFixedExpense(id);
+        fixedExpenses = fixedExpenses.filter(f => f.id !== id);
+        renderFixedList();
+        showToast('Cuota fija eliminada');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al eliminar la cuota fija', true);
+      }
+    }
+
     // ── MODAL GASTO ──────────────────────────────────────────────────
     let editingId = null;
 
     function toggleRecurringFields() {
-      const on = document.getElementById('f-recurring').checked;
-      document.getElementById('f-recurring-fields').classList.toggle('hidden', !on);
+      const type = document.getElementById('f-repeat-type').value;
+      document.getElementById('f-recurring-fields').classList.toggle('hidden', type === 'none');
+      document.getElementById('f-recurring-until-wrap').classList.toggle('hidden', type === 'fixed');
+      document.getElementById('f-fixed-hint').classList.toggle('hidden', type !== 'fixed');
     }
 
     function openModal() {
@@ -882,8 +1004,9 @@
       document.getElementById('modalTitle').textContent = 'Añadir gasto';
       document.getElementById('expenseForm').reset();
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('f-recurring-fields').classList.add('hidden');
+      document.getElementById('f-repeat-type').value = 'none';
       document.getElementById('f-recurring-wrap').classList.remove('hidden');
+      toggleRecurringFields();
       const m = document.getElementById('modal');
       m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -897,9 +1020,9 @@
       document.getElementById('f-date').value   = expense.date;
       document.getElementById('f-cat').value    = expense.cat;
       document.getElementById('f-note').value   = expense.note || '';
-      document.getElementById('f-recurring').checked = false;
-      document.getElementById('f-recurring-fields').classList.add('hidden');
+      document.getElementById('f-repeat-type').value = 'none';
       document.getElementById('f-recurring-wrap').classList.add('hidden');
+      toggleRecurringFields();
       const m = document.getElementById('modal');
       m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -907,8 +1030,9 @@
       const m = document.getElementById('modal');
       m.classList.add('hidden'); m.classList.remove('flex');
       document.getElementById('expenseForm').reset();
-      document.getElementById('f-recurring-fields').classList.add('hidden');
       document.getElementById('f-recurring-wrap').classList.remove('hidden');
+      document.getElementById('f-repeat-type').value = 'none';
+      toggleRecurringFields();
       editingId = null;
     }
     document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
@@ -962,21 +1086,31 @@
           const cat    = document.getElementById('f-cat').value;
           const date   = document.getElementById('f-date').value;
           const note   = document.getElementById('f-note').value.trim();
-          const isRecurring = document.getElementById('f-recurring').checked;
+          const repeatType = document.getElementById('f-repeat-type').value;
 
-          if (isRecurring) {
+          const fail = (msg) => { showToast(msg, true); btn.disabled = false; btn.textContent = 'Guardar gasto'; };
+
+          if (repeatType === 'recurring') {
             const day   = parseInt(document.getElementById('f-recurring-day').value, 10);
             const until = document.getElementById('f-recurring-until').value;
-            if (!day || day < 1 || day > 31) { showToast('Indica un día del mes válido (1-31)', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
-            if (!until) { showToast('Indica el mes en el que finaliza', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
+            if (!day || day < 1 || day > 31) return fail('Indica un día del mes válido (1-31)');
+            if (!until) return fail('Indica el mes en el que finaliza');
             const dates = buildRecurringDates(date, day, until);
-            if (!dates.length) { showToast('El mes de fin debe ser posterior a la fecha inicial', true); btn.disabled = false; btn.textContent = 'Guardar gasto'; return; }
+            if (!dates.length) return fail('El mes de fin debe ser posterior a la fecha inicial');
             const newExpenses = dates.map(d => ({
               id: crypto.randomUUID(), desc, amount, cat, date: d, note,
             }));
             await dbInsertExpenses(newExpenses);
             expenses.unshift(...newExpenses);
             showToast(`${newExpenses.length} gastos recurrentes añadidos`);
+          } else if (repeatType === 'fixed') {
+            const day = parseInt(document.getElementById('f-recurring-day').value, 10);
+            if (!day || day < 1 || day > 31) return fail('Indica un día del mes válido (1-31)');
+            const fixedExpense = { id: crypto.randomUUID(), desc, amount, cat, note, day };
+            await dbInsertFixedExpense(fixedExpense);
+            fixedExpenses.unshift(fixedExpense);
+            await generatePendingFixedExpenses();
+            showToast('Cuota fija creada');
           } else {
             const expense = { id: crypto.randomUUID(), desc, amount, cat, date, note };
             await dbInsertExpense(expense);
