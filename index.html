@@ -1075,7 +1075,7 @@
     document.getElementById('recurringModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeRecurringModal(); });
 
     function getRecurringSeries() {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const curMonthPrefix = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
       const groups = {};
       expenses.forEach(e => {
         if (!e.recurring_group_id) return;
@@ -1084,8 +1084,10 @@
       });
       return Object.entries(groups).map(([groupId, list]) => {
         list.sort((a, b) => a.date.localeCompare(b.date));
-        const future  = list.filter(e => e.date > todayStr);
-        const current = list.filter(e => e.date <= todayStr);
+        // "Futuro" = meses estrictamente posteriores al actual, para no
+        // contar/borrar el gasto de este mes aunque su día aún no haya llegado.
+        const future  = list.filter(e => e.date.slice(0,7) > curMonthPrefix);
+        const current = list.filter(e => e.date.slice(0,7) <= curMonthPrefix);
         const anchor  = current.length ? current[current.length - 1] : null;
         const display = anchor || list[0];
         return {
@@ -1094,8 +1096,8 @@
           remaining: future.length,
           lastDate: list[list.length - 1].date,
           // Fecha a partir de la cual borrar al cancelar: si ya hay una cuota
-          // pasada/actual se conserva (borra solo lo posterior); si la serie
-          // entera es futura, no hay nada que conservar y se borra todo.
+          // de este mes o anterior se conserva (borra solo meses posteriores);
+          // si la serie entera es futura, no hay nada que conservar y se borra todo.
           cancelAfterDate: anchor ? anchor.date : null,
         };
       }).filter(s => s.remaining > 0);
