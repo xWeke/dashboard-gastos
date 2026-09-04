@@ -663,10 +663,10 @@
       if (error) throw error;
     }
 
-    async function dbDeleteExpensesFrom(groupId, fromDate) {
+    async function dbDeleteExpensesFrom(groupId, afterDate) {
       const { error } = await db.from('expenses').delete()
         .eq('recurring_group_id', groupId)
-        .gte('date', fromDate);
+        .gt('date', afterDate);
       if (error) throw error;
     }
 
@@ -878,11 +878,11 @@
       }).join('');
     }
 
-    async function cancelRecurringSeries(groupId, fromDate) {
-      if (!confirm('Se eliminarán este gasto y todos los futuros de la misma serie recurrente. El historial pasado se mantiene. ¿Continuar?')) return;
+    async function cancelRecurringSeries(groupId, afterDate) {
+      if (!confirm('Se eliminarán los gastos futuros de esta serie recurrente (a partir del mes siguiente). Este gasto y el historial pasado se mantienen. ¿Continuar?')) return;
       try {
-        await dbDeleteExpensesFrom(groupId, fromDate);
-        expenses = expenses.filter(e => !(e.recurring_group_id === groupId && e.date >= fromDate));
+        await dbDeleteExpensesFrom(groupId, afterDate);
+        expenses = expenses.filter(e => !(e.recurring_group_id === groupId && e.date > afterDate));
         renderAll(currentMonth);
         showToast('Serie recurrente cancelada');
       } catch (err) {
