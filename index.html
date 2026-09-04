@@ -501,6 +501,36 @@
     </div>
   </div>
 
+  <!-- MODAL VENDER (INVERSIONES) -->
+  <div id="sellModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Vender participaciones</h3>
+        <button onclick="closeSellModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p id="sellModalSubtitle" class="text-xs text-gray-400 mb-4"></p>
+      <form id="sellForm" onsubmit="submitSell(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Participaciones a vender</label>
+          <input id="sl-shares" type="number" required min="0.00000001" step="0.00000001" placeholder="Ej: 1,5" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Precio de venta (€/ud)</label>
+          <input id="sl-price" type="number" required min="0.01" step="0.01" placeholder="Ej: 168,00" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Fecha</label>
+          <input id="sl-date" type="date" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
+          Confirmar venta
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL EXPORTAR -->
   <div id="exportModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
     <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
@@ -2200,11 +2230,33 @@ new Chart(document.getElementById('chart'), {
     function getInvestmentPositions() {
       const byTicker = {};
       investmentPurchases.forEach(p => {
-        if (!byTicker[p.ticker]) byTicker[p.ticker] = { ticker: p.ticker, isin: p.isin, name: p.name, shares: 0, cost: 0 };
-        byTicker[p.ticker].shares += p.shares;
-        byTicker[p.ticker].cost += p.shares * p.price;
+        if (!byTicker[p.ticker]) byTicker[p.ticker] = [];
+        byTicker[p.ticker].push(p);
       });
-      return Object.values(byTicker);
+
+      return Object.entries(byTicker).map(([ticker, movs]) => {
+        const sorted = [...movs].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+        let shares = 0, cost = 0, realizedGain = 0;
+        sorted.forEach(m => {
+          if (m.shares > 0) {
+            shares += m.shares;
+            cost += m.shares * m.price;
+          } else {
+            const sellShares = -m.shares;
+            const avgCost = shares > 0 ? cost / shares : 0;
+            const costRemoved = avgCost * sellShares;
+            realizedGain += (m.price - avgCost) * sellShares;
+            shares -= sellShares;
+            cost -= costRemoved;
+          }
+        });
+        const last = sorted[sorted.length - 1];
+        return {
+          ticker, isin: last.isin, name: last.name,
+          shares, cost, realizedGain,
+          movements: sorted,
+        };
+      });
     }
 
     async function fetchEtfPrices(tickers, range) {
@@ -2270,16 +2322,29 @@ new Chart(document.getElementById('chart'), {
         list.innerHTML = `<div class="card p-6 text-center text-gray-400 text-sm">Aún no has añadido ninguna inversión</div>`;
         return;
       }
+      const mn = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
       list.innerHTML = rows.map(r => {
         const slug = tickerSlug(r.ticker);
         const activeRange = etfChartRange[r.ticker] || '6m';
+        const movesHtml = r.movements.map(m => {
+          const [,mm,dd] = m.date.split('-');
+          const isBuy = m.shares > 0;
+          return `
+            <div class="flex items-center justify-between px-1 py-2 border-t border-gray-50 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-medium ${isBuy ? 'text-emerald-500' : 'text-red-400'}">${isBuy ? 'Compra' : 'Venta'}</span>
+                <span class="text-gray-400">${parseInt(dd)} ${mn[parseInt(mm)]}</span>
+              </div>
+              <span class="text-gray-600">${Math.abs(m.shares)} ud · ${fmt(m.price)} €/ud</span>
+            </div>`;
+        }).join('');
         return `
         <div class="card p-4 shadow-sm">
           <div class="flex items-center justify-between mb-1">
             <div class="text-sm font-semibold text-gray-800 truncate pr-2">${r.name}</div>
             <span class="text-xs text-gray-400 flex-shrink-0">${r.ticker}</span>
           </div>
-          <div class="text-xs text-gray-400 mb-3">${r.shares} participaciones · coste ${fmt(r.cost)} €</div>
+          <div class="text-xs text-gray-400 mb-3">${r.shares} participaciones · coste ${fmt(r.cost)} €${r.realizedGain !== 0 ? ` · ganancia realizada <span class="${r.realizedGain >= 0 ? 'text-emerald-500' : 'text-red-400'} font-medium">${r.realizedGain >= 0 ? '+' : ''}${fmt(r.realizedGain)} €</span>` : ''}</div>
           <div class="flex items-center justify-between mb-3">
             <div>
               <div class="text-lg font-bold text-gray-900">${r.value != null ? fmt(r.value) + ' €' : '—'}</div>
@@ -2292,11 +2357,18 @@ new Chart(document.getElementById('chart'), {
             </div>` : ''}
           </div>
           <canvas id="etfChart-${slug}" height="50"></canvas>
-          <div class="flex justify-center gap-1 mt-2">
+          <div class="flex justify-center gap-1 mt-2 mb-3">
             ${CHART_RANGES.map(cr => `
               <button onclick="setEtfChartRange('${r.ticker}','${cr.key}')" data-range="${cr.key}" class="px-2 py-1 rounded-md text-xs font-medium transition ${cr.key === activeRange ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-100'}">${cr.label}</button>
             `).join('')}
           </div>
+          <button onclick="openSellModal('${r.ticker}', '${r.name.replace(/'/g,"\\'")}', ${r.shares})" class="w-full py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition mb-2" ${r.shares <= 0 ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>
+            Vender participaciones
+          </button>
+          <details>
+            <summary class="text-xs text-gray-400 cursor-pointer select-none">Historial de movimientos (${r.movements.length})</summary>
+            <div class="mt-1">${movesHtml}</div>
+          </details>
         </div>`;
       }).join('');
 
@@ -2400,6 +2472,54 @@ new Chart(document.getElementById('chart'), {
         showToast('Error al guardar la compra', true);
       }
       btn.disabled = false; btn.textContent = 'Guardar compra';
+    }
+
+    let sellTicker = null, sellName = null, sellMaxShares = 0;
+
+    function openSellModal(ticker, name, maxShares) {
+      sellTicker = ticker; sellName = name; sellMaxShares = maxShares;
+      document.getElementById('sellForm').reset();
+      document.getElementById('sl-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('sl-shares').max = maxShares;
+      document.getElementById('sellModalSubtitle').textContent = `${name} · tienes ${maxShares} participaciones`;
+      const m = document.getElementById('sellModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeSellModal() {
+      const m = document.getElementById('sellModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+    document.getElementById('sellModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSellModal(); });
+
+    async function submitSell(event) {
+      event.preventDefault();
+      const shares = parseFloat(document.getElementById('sl-shares').value);
+      const price = parseFloat(document.getElementById('sl-price').value);
+      if (!shares || shares <= 0 || !price || price <= 0) return;
+      if (shares > sellMaxShares) { showToast('No puedes vender más participaciones de las que tienes', true); return; }
+      const btn = event.submitter;
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        const existing = investmentPurchases.find(p => p.ticker === sellTicker);
+        const sell = {
+          id: crypto.randomUUID(),
+          ticker: sellTicker,
+          isin: existing?.isin || '',
+          name: sellName,
+          shares: -shares,
+          price,
+          date: document.getElementById('sl-date').value,
+        };
+        await dbInsertInvestmentPurchase(sell);
+        investmentPurchases.unshift(sell);
+        closeSellModal();
+        await renderInvestments();
+        showToast('Venta registrada');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al registrar la venta', true);
+      }
+      btn.disabled = false; btn.textContent = 'Confirmar venta';
     }
 
     // ── BLOQUEO DE ZOOM (Safari iOS ignora el meta viewport) ──────────
