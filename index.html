@@ -2096,21 +2096,32 @@ new Chart(document.getElementById('chart'), {
       return Object.values(byTicker);
     }
 
-    async function fetchEtfPrices(tickers) {
-      if (!tickers.length) return;
+    async function fetchEtfPrices(tickers, range) {
+      if (!tickers.length) return {};
       const resp = await fetch(
-        `${SUPABASE_URL}/functions/v1/get-etf-price?tickers=${encodeURIComponent(tickers.join(','))}`,
+        `${SUPABASE_URL}/functions/v1/get-etf-price?tickers=${encodeURIComponent(tickers.join(','))}&range=${encodeURIComponent(range)}`,
         { headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } }
       );
       const json = await resp.json();
-      etfPrices = json.prices || {};
+      return json.prices || {};
     }
+
+    const CHART_RANGES = [
+      { key: '1w',    label: '1S' },
+      { key: '1m',    label: '1M' },
+      { key: '6m',    label: '6M' },
+      { key: '1y',    label: '1A' },
+      { key: 'total', label: 'Total' },
+    ];
+    let etfChartRange = {}; // ticker -> rango seleccionado
+
+    function tickerSlug(ticker) { return ticker.replace(/[^a-zA-Z0-9]/g, '_'); }
 
     async function renderInvestments() {
       const positions = getInvestmentPositions();
       const tickers = positions.map(p => p.ticker);
       if (tickers.length) {
-        try { await fetchEtfPrices(tickers); } catch (err) { console.error('Error al obtener precios:', err); }
+        try { etfPrices = await fetchEtfPrices(tickers, '6m'); } catch (err) { console.error('Error al obtener precios:', err); }
       }
 
       let totalValue = 0, totalCost = 0;
@@ -2148,7 +2159,10 @@ new Chart(document.getElementById('chart'), {
         list.innerHTML = `<div class="card p-6 text-center text-gray-400 text-sm">Aún no has añadido ninguna inversión</div>`;
         return;
       }
-      list.innerHTML = rows.map((r, i) => `
+      list.innerHTML = rows.map(r => {
+        const slug = tickerSlug(r.ticker);
+        const activeRange = etfChartRange[r.ticker] || '6m';
+        return `
         <div class="card p-4 shadow-sm">
           <div class="flex items-center justify-between mb-1">
             <div class="text-sm font-semibold text-gray-800 truncate pr-2">${r.name}</div>
@@ -2166,37 +2180,66 @@ new Chart(document.getElementById('chart'), {
               <div class="text-xs ${r.gain >= 0 ? 'text-emerald-500' : 'text-red-400'}">${r.gainPct >= 0 ? '+' : ''}${r.gainPct.toFixed(1)}%</div>
             </div>` : ''}
           </div>
-          <canvas id="etfChart-${i}" height="50"></canvas>
-        </div>`).join('');
+          <canvas id="etfChart-${slug}" height="50"></canvas>
+          <div class="flex justify-center gap-1 mt-2">
+            ${CHART_RANGES.map(cr => `
+              <button onclick="setEtfChartRange('${r.ticker}','${cr.key}')" data-range="${cr.key}" class="px-2 py-1 rounded-md text-xs font-medium transition ${cr.key === activeRange ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-100'}">${cr.label}</button>
+            `).join('')}
+          </div>
+        </div>`;
+      }).join('');
 
       etfChartInsts.forEach(c => c.destroy());
       etfChartInsts = [];
-      rows.forEach((r, i) => {
-        const history = etfPrices[r.ticker]?.history;
-        if (!history || !history.length) return;
-        const ctx = document.getElementById(`etfChart-${i}`)?.getContext('2d');
-        if (!ctx) return;
-        const first = history[0].close;
-        const last = history[history.length - 1].close;
-        const isUp = last >= first;
-        etfChartInsts.push(new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: history.map(p => p.t),
-            datasets: [{
-              data: history.map(p => p.close),
-              borderColor: isUp ? '#10b981' : '#f43f5e',
-              backgroundColor: isUp ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
-              fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
-            }]
-          },
-          options: {
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { x: { display: false }, y: { display: false } },
-            animation: false,
-          }
-        }));
+      rows.forEach(r => drawEtfChart(r.ticker, etfPrices[r.ticker]?.history));
+    }
+
+    function drawEtfChart(ticker, history) {
+      const slug = tickerSlug(ticker);
+      const ctx = document.getElementById(`etfChart-${slug}`)?.getContext('2d');
+      if (!ctx || !history || !history.length) return;
+      const first = history[0].close;
+      const last = history[history.length - 1].close;
+      const isUp = last >= first;
+      const inst = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: history.map(p => p.t),
+          datasets: [{
+            data: history.map(p => p.close),
+            borderColor: isUp ? '#10b981' : '#f43f5e',
+            backgroundColor: isUp ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
+            fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { x: { display: false }, y: { display: false } },
+          animation: false,
+        }
       });
+      etfChartInsts.push(inst);
+    }
+
+    async function setEtfChartRange(ticker, rangeKey) {
+      etfChartRange[ticker] = rangeKey;
+      const btnsWrap = document.getElementById(`etfChart-${tickerSlug(ticker)}`)?.nextElementSibling;
+      if (btnsWrap) {
+        [...btnsWrap.children].forEach(btn => {
+          const isActive = btn.dataset.range === rangeKey;
+          btn.className = `px-2 py-1 rounded-md text-xs font-medium transition ${isActive ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-100'}`;
+        });
+      }
+      try {
+        const prices = await fetchEtfPrices([ticker], rangeKey);
+        const history = prices[ticker]?.history;
+        const slug = tickerSlug(ticker);
+        const existingIdx = etfChartInsts.findIndex(c => c.canvas.id === `etfChart-${slug}`);
+        if (existingIdx !== -1) { etfChartInsts[existingIdx].destroy(); etfChartInsts.splice(existingIdx, 1); }
+        drawEtfChart(ticker, history);
+      } catch (err) {
+        console.error('Error al cambiar rango:', err);
+      }
     }
 
     function applyInvestmentPreset() {
