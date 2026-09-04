@@ -650,15 +650,23 @@
 
     async function dbInsertExpenses(expenseList) {
       const { error } = await db.from('expenses').insert(expenseList.map(expense => ({
-        id:               expense.id,
-        description:      expense.desc,
-        amount:           expense.amount,
-        cat:              expense.cat,
-        date:             expense.date,
-        note:             expense.note || '',
-        user_id:          currentUser.id,
-        fixed_expense_id: expense.fixed_expense_id || null,
+        id:                  expense.id,
+        description:         expense.desc,
+        amount:              expense.amount,
+        cat:                 expense.cat,
+        date:                expense.date,
+        note:                expense.note || '',
+        user_id:             currentUser.id,
+        fixed_expense_id:    expense.fixed_expense_id || null,
+        recurring_group_id:  expense.recurring_group_id || null,
       })));
+      if (error) throw error;
+    }
+
+    async function dbDeleteExpensesFrom(groupId, fromDate) {
+      const { error } = await db.from('expenses').delete()
+        .eq('recurring_group_id', groupId)
+        .gte('date', fromDate);
       if (error) throw error;
     }
 
@@ -855,6 +863,10 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="text-sm font-semibold text-gray-700">−${fmt(e.amount)} €</span>
+              ${e.recurring_group_id ? `
+              <button onclick="cancelRecurringSeries('${e.recurring_group_id}', '${e.date}')" title="Cancelar serie recurrente" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-orange-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
+              </button>` : ''}
               <button onclick="openEditModal('${e.id}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-blue-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
@@ -864,6 +876,19 @@
             </div>
           </div>`;
       }).join('');
+    }
+
+    async function cancelRecurringSeries(groupId, fromDate) {
+      if (!confirm('Se eliminarán este gasto y todos los futuros de la misma serie recurrente. El historial pasado se mantiene. ¿Continuar?')) return;
+      try {
+        await dbDeleteExpensesFrom(groupId, fromDate);
+        expenses = expenses.filter(e => !(e.recurring_group_id === groupId && e.date >= fromDate));
+        renderAll(currentMonth);
+        showToast('Serie recurrente cancelada');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al cancelar la serie', true);
+      }
     }
 
     // ── SUMMARY ──────────────────────────────────────────────────────
@@ -1097,8 +1122,9 @@
             if (!until) return fail('Indica el mes en el que finaliza');
             const dates = buildRecurringDates(date, day, until);
             if (!dates.length) return fail('El mes de fin debe ser posterior a la fecha inicial');
+            const groupId = crypto.randomUUID();
             const newExpenses = dates.map(d => ({
-              id: crypto.randomUUID(), desc, amount, cat, date: d, note,
+              id: crypto.randomUUID(), desc, amount, cat, date: d, note, recurring_group_id: groupId,
             }));
             await dbInsertExpenses(newExpenses);
             expenses.unshift(...newExpenses);
