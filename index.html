@@ -266,6 +266,16 @@
               <div id="summaryVsPrev" class="text-base sm:text-lg font-semibold text-gray-400">—</div>
             </div>
           </div>
+          <div id="summaryPaceRow" class="hidden flex justify-around sm:justify-start sm:gap-8 mt-3 pt-3 border-t border-gray-100">
+            <div class="text-center sm:text-left">
+              <div class="text-xs text-gray-400 uppercase tracking-wider">Disp. diario</div>
+              <div id="summaryDaily" class="text-base sm:text-lg font-semibold text-gray-400">—</div>
+            </div>
+            <div class="text-center sm:text-left">
+              <div class="text-xs text-gray-400 uppercase tracking-wider">Disp. semanal</div>
+              <div id="summaryWeekly" class="text-base sm:text-lg font-semibold text-gray-400">—</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -936,6 +946,27 @@
       vsEl.textContent = vsPrev !== null ? `${vsPrev >= 0 ? '+' : ''}${vsPrev}%` : '—';
       vsEl.className = `text-base sm:text-lg font-semibold ${vsPrev === null ? 'text-gray-400' : vsPrev <= 0 ? 'text-red-400' : 'text-emerald-500'}`;
       document.getElementById('summaryVsPrevLabel').textContent = `VS ${prevName}`;
+
+      const paceRow = document.getElementById('summaryPaceRow');
+      const isCurrentMonth = month === `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
+      if (hasBudget && isCurrentMonth) {
+        paceRow.classList.remove('hidden');
+        const daysInMonth  = lastDayOfMonth(y, m);
+        const daysLeft     = daysInMonth - _now.getDate() + 1;
+        const dailyAvail   = available / daysLeft;
+        const weeksLeft    = daysLeft / 7;
+        const weeklyAvail  = available / weeksLeft;
+
+        const dailyEl = document.getElementById('summaryDaily');
+        dailyEl.textContent = `${fmt(dailyAvail)} €`;
+        dailyEl.className = `text-base sm:text-lg font-semibold ${dailyAvail >= 0 ? 'text-emerald-500' : 'text-red-400'}`;
+
+        const weeklyEl = document.getElementById('summaryWeekly');
+        weeklyEl.textContent = `${fmt(weeklyAvail)} €`;
+        weeklyEl.className = `text-base sm:text-lg font-semibold ${weeklyAvail >= 0 ? 'text-emerald-500' : 'text-red-400'}`;
+      } else {
+        paceRow.classList.add('hidden');
+      }
     }
 
     // ── RENDER ALL ───────────────────────────────────────────────────
