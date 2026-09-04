@@ -759,10 +759,7 @@
     }
 
     async function generatePendingFixedExpenses() {
-      const today  = new Date();
-      const curDay = today.getDate();
-
-      const pending = fixedExpenses.filter(f => f.day <= curDay && !hasCurrentMonthExpense(f.id));
+      const pending = fixedExpenses.filter(f => !hasCurrentMonthExpense(f.id));
       if (!pending.length) return;
 
       const newExpenses = pending.map(buildCurrentMonthExpense);
