@@ -187,6 +187,9 @@
       <button onclick="openFixedModal()" title="Cuotas fijas" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a4 4 0 00-8 0v2M5 9h14l1 11H4L5 9z"/></svg>
       </button>
+      <button onclick="openRecurringModal()" title="Gastos recurrentes" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
+      </button>
       <select id="monthSelect" class="text-sm font-medium text-gray-700 bg-transparent border-none cursor-pointer pr-6 pl-1 py-1 rounded-md hover:bg-white/60 transition max-w-[120px] sm:max-w-none"></select>
       <button onclick="openSettingsModal()" title="Ajustes" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
@@ -400,6 +403,20 @@
       </div>
       <p class="text-xs text-gray-400 mb-4">Gastos que se repiten todos los meses de forma indefinida.</p>
       <div id="fixedList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- MODAL GASTOS RECURRENTES -->
+  <div id="recurringModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Gastos recurrentes</h3>
+        <button onclick="closeRecurringModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 mb-4">Gastos repartidos en varios meses con fecha de fin. Cancela una serie para dejar de generar los meses futuros.</p>
+      <div id="recurringList" class="space-y-2"></div>
     </div>
   </div>
 
@@ -1012,6 +1029,66 @@
         console.error(err);
         showToast('Error al eliminar la cuota fija', true);
       }
+    }
+
+    // ── MODAL GASTOS RECURRENTES ─────────────────────────────────────
+    function openRecurringModal() {
+      renderRecurringList();
+      const m = document.getElementById('recurringModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeRecurringModal() {
+      const m = document.getElementById('recurringModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+    document.getElementById('recurringModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeRecurringModal(); });
+
+    function getRecurringSeries() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const groups = {};
+      expenses.forEach(e => {
+        if (!e.recurring_group_id) return;
+        if (!groups[e.recurring_group_id]) groups[e.recurring_group_id] = [];
+        groups[e.recurring_group_id].push(e);
+      });
+      return Object.entries(groups).map(([groupId, list]) => {
+        list.sort((a, b) => a.date.localeCompare(b.date));
+        const future  = list.filter(e => e.date > todayStr);
+        const current = list.filter(e => e.date <= todayStr);
+        const anchor  = current.length ? current[current.length - 1] : list[0];
+        return {
+          groupId,
+          desc: anchor.desc, amount: anchor.amount, cat: anchor.cat,
+          remaining: future.length,
+          lastDate: list[list.length - 1].date,
+          anchorDate: anchor.date,
+        };
+      }).filter(s => s.remaining > 0);
+    }
+
+    function renderRecurringList() {
+      const list = document.getElementById('recurringList');
+      const series = getRecurringSeries();
+      if (!series.length) {
+        list.innerHTML = `<div class="p-4 text-center text-gray-400 text-sm">No tienes gastos recurrentes con cuotas pendientes</div>`;
+        return;
+      }
+      list.innerHTML = series.map(s => {
+        const cat = CATEGORIES[s.cat];
+        const [ey, em] = s.lastDate.split('-');
+        return `
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0" style="background:${cat.bg}">${cat.icon}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">${s.desc}</div>
+              <div class="text-xs text-gray-400">${cat.label} · quedan ${s.remaining} cuota${s.remaining === 1 ? '' : 's'} · fin ${MONTH_NAMES[parseInt(em)-1].slice(0,3)} ${ey}</div>
+            </div>
+            <span class="text-sm font-semibold text-gray-700">${fmt(s.amount)} €</span>
+            <button onclick="cancelRecurringSeries('${s.groupId}', '${s.anchorDate}'); closeRecurringModal();" title="Cancelar cuotas futuras" class="text-gray-300 hover:text-orange-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
+            </button>
+          </div>`;
+      }).join('');
     }
 
     // ── MODAL GASTO ──────────────────────────────────────────────────
