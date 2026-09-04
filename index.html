@@ -1548,7 +1548,7 @@
             expenses.unshift(expense);
 
             if (cat === 'ahorro') {
-              const saving = { id: crypto.randomUUID(), amount, date, note: desc };
+              const saving = { id: crypto.randomUUID(), amount, date, note: desc, expense_id: expense.id };
               await dbInsertSaving(saving);
               savings.unshift(saving);
             }
@@ -1561,6 +1561,7 @@
                 shares: parseFloat(document.getElementById('f-iv-shares').value),
                 price:  amount / parseFloat(document.getElementById('f-iv-shares').value),
                 date,
+                expense_id: expense.id,
               };
               await dbInsertInvestmentPurchase(purchase);
               investmentPurchases.unshift(purchase);
@@ -1580,8 +1581,19 @@
     async function deleteExpense(id) {
       if (!confirm('¿Eliminar este gasto?')) return;
       try {
+        const expense = expenses.find(e => e.id === id);
         await dbDeleteExpense(id);
         expenses = expenses.filter(e => e.id !== id);
+
+        if (expense?.cat === 'ahorro') {
+          await dbDeleteSavingByExpenseId(id);
+          savings = savings.filter(s => s.expense_id !== id);
+        }
+        if (expense?.cat === 'inversiones') {
+          await dbDeleteInvestmentPurchaseByExpenseId(id);
+          investmentPurchases = investmentPurchases.filter(p => p.expense_id !== id);
+        }
+
         renderAll(currentMonth);
         showToast('Gasto eliminado');
       } catch (err) {
@@ -2047,8 +2059,14 @@ new Chart(document.getElementById('chart'), {
 
     async function dbInsertSaving(saving) {
       const { error } = await db.from('savings').insert({
-        id: saving.id, amount: saving.amount, date: saving.date, note: saving.note || '', user_id: currentUser.id,
+        id: saving.id, amount: saving.amount, date: saving.date, note: saving.note || '',
+        expense_id: saving.expense_id || null, user_id: currentUser.id,
       });
+      if (error) throw error;
+    }
+
+    async function dbDeleteSavingByExpenseId(expenseId) {
+      const { error } = await db.from('savings').delete().eq('expense_id', expenseId);
       if (error) throw error;
     }
 
@@ -2163,8 +2181,14 @@ new Chart(document.getElementById('chart'), {
     async function dbInsertInvestmentPurchase(p) {
       const { error } = await db.from('investment_purchases').insert({
         id: p.id, ticker: p.ticker, isin: p.isin, name: p.name,
-        shares: p.shares, price: p.price, date: p.date, user_id: currentUser.id,
+        shares: p.shares, price: p.price, date: p.date,
+        expense_id: p.expense_id || null, user_id: currentUser.id,
       });
+      if (error) throw error;
+    }
+
+    async function dbDeleteInvestmentPurchaseByExpenseId(expenseId) {
+      const { error } = await db.from('investment_purchases').delete().eq('expense_id', expenseId);
       if (error) throw error;
     }
 
