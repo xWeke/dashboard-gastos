@@ -190,6 +190,7 @@
       <button onclick="openRecurringModal()" title="Gastos recurrentes" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
       </button>
+      <select id="yearSelect" class="text-sm font-medium text-gray-700 bg-transparent border-none cursor-pointer pr-5 pl-1 py-1 rounded-md hover:bg-white/60 transition"></select>
       <select id="monthSelect" class="text-sm font-medium text-gray-700 bg-transparent border-none cursor-pointer pr-6 pl-1 py-1 rounded-md hover:bg-white/60 transition max-w-[120px] sm:max-w-none"></select>
       <button onclick="openSettingsModal()" title="Ajustes" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
@@ -880,10 +881,6 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="text-sm font-semibold text-gray-700">−${fmt(e.amount)} €</span>
-              ${e.recurring_group_id ? `
-              <button onclick="cancelRecurringSeries('${e.recurring_group_id}', '${e.date}')" title="Cancelar serie recurrente" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-orange-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
-              </button>` : ''}
               <button onclick="openEditModal('${e.id}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-blue-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
@@ -1292,21 +1289,41 @@
       return exps.filter(e => { const d = new Date(e.date); return d >= from && d <= today; });
     }
 
-    // ── MONTH SELECT ─────────────────────────────────────────────────
-    document.getElementById('monthSelect').addEventListener('change', async function() {
-      currentMonth = this.value; currentPeriod = 'month';
+    // ── YEAR / MONTH SELECT ──────────────────────────────────────────
+    function buildMonthSelect(year) {
+      const sel = document.getElementById('monthSelect');
+      sel.innerHTML = '';
+      MONTH_NAMES.forEach((name, i) => {
+        sel.appendChild(new Option(name, `${year}-${String(i+1).padStart(2,'0')}`));
+      });
+      const [curYear, curMonth] = currentMonth.split('-');
+      sel.value = (parseInt(curYear, 10) === year) ? currentMonth : `${year}-${curMonth}`;
+    }
+
+    async function onMonthOrYearChange() {
+      currentMonth = `${document.getElementById('yearSelect').value}-${document.getElementById('monthSelect').value.split('-')[1]}`;
+      currentPeriod = 'month';
       document.getElementById('periodLabel').textContent = 'Todo el mes';
       try { BUDGET_TOTAL = await dbLoadBudget(currentMonth); } catch(_) {}
       updateBudgetBtn();
       renderAll(currentMonth);
+    }
+
+    document.getElementById('monthSelect').addEventListener('change', onMonthOrYearChange);
+    document.getElementById('yearSelect').addEventListener('change', function() {
+      buildMonthSelect(parseInt(this.value, 10));
+      onMonthOrYearChange();
     });
-    (function buildMonthSelect() {
-      const sel = document.getElementById('monthSelect');
-      const year = _now.getFullYear();
-      MONTH_NAMES.forEach((name, i) => {
-        sel.appendChild(new Option(`${name} ${year}`, `${year}-${String(i+1).padStart(2,'0')}`));
-      });
-      sel.value = currentMonth;
+
+    (function initYearMonthSelects() {
+      const yearSel  = document.getElementById('yearSelect');
+      const curYear  = _now.getFullYear();
+      const minYear  = 2020;
+      for (let y = curYear + 1; y >= minYear; y--) {
+        yearSel.appendChild(new Option(y, y));
+      }
+      yearSel.value = curYear;
+      buildMonthSelect(curYear);
     })();
 
     // ── DARK MODE ────────────────────────────────────────────────────
