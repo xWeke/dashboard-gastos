@@ -194,6 +194,9 @@
       <button onclick="openRecurringModal()" title="Gastos recurrentes" class="hidden sm:flex text-gray-400 hover:text-gray-600 items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
       </button>
+      <button id="savingsNavBtn" onclick="showSavingsView()" title="Ahorro" class="hidden sm:flex text-gray-400 hover:text-gray-600 items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </button>
       <button onclick="openSettingsModal()" title="Ajustes" class="hidden sm:flex text-gray-400 hover:text-gray-600 items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
       </button>
@@ -220,6 +223,10 @@
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
             Gastos recurrentes
           </button>
+          <button onclick="showSavingsView(); toggleMobileMenu();" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            Ahorro
+          </button>
           <button onclick="openSettingsModal(); toggleMobileMenu();" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
             Ajustes
@@ -235,7 +242,7 @@
     </div>
   </header>
 
-  <main class="px-4 sm:px-6 pb-10 space-y-4 sm:space-y-5 max-w-4xl mx-auto">
+  <main id="gastosView" class="px-4 sm:px-6 pb-10 space-y-4 sm:space-y-5 max-w-4xl mx-auto">
 
     <!-- SEARCH + ACTIONS -->
     <div class="flex flex-wrap gap-3">
@@ -347,6 +354,69 @@
       <div class="card shadow-sm divide-y divide-gray-50" id="movimientosList"></div>
     </div>
   </main>
+
+  <!-- VISTA AHORRO -->
+  <main id="savingsView" class="hidden px-4 sm:px-6 pb-10 space-y-4 sm:space-y-5 max-w-4xl mx-auto">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <button onclick="showGastosView()" title="Volver a Gastos" class="text-gray-400 hover:text-gray-600 flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/60 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <h2 class="text-base font-semibold text-gray-800">Ahorro</h2>
+      </div>
+      <button onclick="openSavingsModal()" class="px-3 sm:px-4 py-2.5 rounded-xl bg-gray-900 text-sm text-white shadow-sm hover:bg-gray-800 transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="hidden sm:inline">Añadir movimiento</span>
+        <span class="sm:hidden">Añadir</span>
+      </button>
+    </div>
+
+    <div class="card p-6 shadow-sm text-center">
+      <div class="text-xs font-medium text-gray-400 tracking-wider uppercase mb-2">Total ahorrado</div>
+      <div id="savingsTotal" class="text-4xl font-bold text-gray-900">0,00 €</div>
+    </div>
+
+    <div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-base font-semibold text-gray-800">Movimientos</h2>
+        <span class="text-xs text-gray-400" id="savingsCount"></span>
+      </div>
+      <div class="card shadow-sm divide-y divide-gray-50" id="savingsList"></div>
+    </div>
+  </main>
+
+  <!-- MODAL AÑADIR AHORRO -->
+  <div id="savingsModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="modal-inner bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 class="text-base font-semibold text-gray-800">Movimiento de ahorro</h3>
+        <button onclick="closeSavingsModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="savingsForm" onsubmit="submitSaving(event)" class="space-y-4">
+        <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
+          <button type="button" id="savingsTypeIn" onclick="setSavingsType('in')" class="py-2 rounded-lg text-sm font-medium transition bg-white text-gray-800 shadow-sm">Aportar</button>
+          <button type="button" id="savingsTypeOut" onclick="setSavingsType('out')" class="py-2 rounded-lg text-sm font-medium transition text-gray-500">Retirar</button>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Importe (€)</label>
+          <input id="sv-amount" type="number" required min="0.01" step="0.01" placeholder="0,00" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Fecha</label>
+          <input id="sv-date" type="date" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Nota (opcional)</label>
+          <input id="sv-note" type="text" placeholder="Añade una nota..." class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
+          Guardar
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL EXPORTAR -->
   <div id="exportModal" class="fixed inset-0 modal-bg z-50 hidden flex items-end sm:items-center justify-center">
@@ -713,7 +783,8 @@
         clearTimeout(inactivityTimer);
         showLoginScreen(true);
         showLoginForm();
-        expenses = []; BUDGET_TOTAL = 0;
+        expenses = []; BUDGET_TOTAL = 0; savings = [];
+        showGastosView();
         renderAll(currentMonth);
       }
     });
@@ -832,6 +903,7 @@
         BUDGET_TOTAL  = await dbLoadBudget(currentMonth);
         fixedExpenses = await dbLoadFixedExpenses();
         await generatePendingFixedExpenses();
+        savings = await dbLoadSavings();
       } catch (err) {
         console.error('Error al cargar datos:', err);
         const msg = err?.message || err?.details || JSON.stringify(err);
@@ -1781,6 +1853,129 @@ new Chart(document.getElementById('chart'), {
       win.document.write(html);
       win.document.close();
       closeExportModal();
+    }
+
+    // ── VISTA AHORRO ─────────────────────────────────────────────────
+    let savings = [];
+
+    function showSavingsView() {
+      document.getElementById('gastosView').classList.add('hidden');
+      document.getElementById('savingsView').classList.remove('hidden');
+      renderSavings();
+    }
+    function showGastosView() {
+      document.getElementById('savingsView').classList.add('hidden');
+      document.getElementById('gastosView').classList.remove('hidden');
+    }
+
+    async function dbLoadSavings() {
+      const { data, error } = await db.from('savings').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(s => ({ ...s, note: s.note || '' }));
+    }
+
+    async function dbInsertSaving(saving) {
+      const { error } = await db.from('savings').insert({
+        id: saving.id, amount: saving.amount, date: saving.date, note: saving.note || '', user_id: currentUser.id,
+      });
+      if (error) throw error;
+    }
+
+    async function dbDeleteSaving(id) {
+      const { error } = await db.from('savings').delete().eq('id', id);
+      if (error) throw error;
+    }
+
+    function renderSavings() {
+      const total = savings.reduce((s, x) => s + x.amount, 0);
+      document.getElementById('savingsTotal').textContent = `${fmt(total)} €`;
+      document.getElementById('savingsTotal').className = `text-4xl font-bold ${total < 0 ? 'text-red-400' : 'text-gray-900'}`;
+
+      document.getElementById('savingsCount').textContent = savings.length ? `${savings.length} movimientos` : '';
+      const list = document.getElementById('savingsList');
+      if (!savings.length) {
+        list.innerHTML = `<div class="p-6 text-center text-gray-400 text-sm">Aún no has añadido ningún movimiento de ahorro</div>`;
+        return;
+      }
+      const mn = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      list.innerHTML = savings.map(s => {
+        const [,m,d] = s.date.split('-');
+        const isIn = s.amount >= 0;
+        return `
+          <div class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition group">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0 ${isIn ? 'bg-emerald-50' : 'bg-red-50'}">
+              <svg class="w-4 h-4 ${isIn ? 'text-emerald-500' : 'text-red-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${isIn ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-6 6m6-6l6 6"/>' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m0 0l-6-6m6 6l6-6"/>'}</svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">${isIn ? 'Aportación' : 'Retirada'}${s.note ? ' · ' + s.note : ''}</div>
+              <div class="text-xs text-gray-400">${parseInt(d)} ${mn[parseInt(m)]}</div>
+            </div>
+            <span class="text-sm font-semibold ${isIn ? 'text-emerald-500' : 'text-red-400'}">${isIn ? '+' : ''}${fmt(s.amount)} €</span>
+            <button onclick="deleteSaving('${s.id}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition text-gray-300 hover:text-red-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>`;
+      }).join('');
+    }
+
+    async function deleteSaving(id) {
+      if (!confirm('¿Eliminar este movimiento de ahorro?')) return;
+      try {
+        await dbDeleteSaving(id);
+        savings = savings.filter(s => s.id !== id);
+        renderSavings();
+        showToast('Movimiento eliminado');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al eliminar el movimiento', true);
+      }
+    }
+
+    let savingsType = 'in';
+    function setSavingsType(type) {
+      savingsType = type;
+      const inBtn = document.getElementById('savingsTypeIn');
+      const outBtn = document.getElementById('savingsTypeOut');
+      inBtn.className  = `py-2 rounded-lg text-sm font-medium transition ${type === 'in'  ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`;
+      outBtn.className = `py-2 rounded-lg text-sm font-medium transition ${type === 'out' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`;
+    }
+
+    function openSavingsModal() {
+      document.getElementById('savingsForm').reset();
+      document.getElementById('sv-date').value = new Date().toISOString().split('T')[0];
+      setSavingsType('in');
+      const m = document.getElementById('savingsModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeSavingsModal() {
+      const m = document.getElementById('savingsModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+    document.getElementById('savingsModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSavingsModal(); });
+
+    async function submitSaving(event) {
+      event.preventDefault();
+      const rawAmount = parseFloat(document.getElementById('sv-amount').value);
+      if (!rawAmount || rawAmount <= 0) return;
+      const btn = event.submitter;
+      btn.disabled = true; btn.textContent = 'Guardando...';
+      try {
+        const saving = {
+          id: crypto.randomUUID(),
+          amount: savingsType === 'in' ? rawAmount : -rawAmount,
+          date: document.getElementById('sv-date').value,
+          note: document.getElementById('sv-note').value.trim(),
+        };
+        await dbInsertSaving(saving);
+        savings.unshift(saving);
+        closeSavingsModal();
+        renderSavings();
+        showToast(savingsType === 'in' ? 'Aportación añadida' : 'Retirada añadida');
+      } catch (err) {
+        console.error(err);
+        showToast('Error al guardar el movimiento', true);
+      }
+      btn.disabled = false; btn.textContent = 'Guardar';
     }
 
     // ── BLOQUEO DE ZOOM (Safari iOS ignora el meta viewport) ──────────
