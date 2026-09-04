@@ -741,24 +741,31 @@
 
     let fixedExpenses = [];
 
-    async function generatePendingFixedExpenses() {
-      const today   = new Date();
-      const y       = today.getFullYear();
-      const m       = today.getMonth() + 1;
-      const curDay  = today.getDate();
+    function hasCurrentMonthExpense(fixedExpenseId) {
+      const today = new Date();
+      const monthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+      return expenses.some(e => e.fixed_expense_id === fixedExpenseId && e.date.startsWith(monthPrefix));
+    }
+
+    function buildCurrentMonthExpense(f) {
+      const today = new Date();
+      const y = today.getFullYear(), m = today.getMonth() + 1;
       const monthPrefix = `${y}-${String(m).padStart(2,'0')}`;
-
-      const pending = fixedExpenses.filter(f => {
-        if (f.day > curDay) return false;
-        return !expenses.some(e => e.fixed_expense_id === f.id && e.date.startsWith(monthPrefix));
-      });
-      if (!pending.length) return;
-
-      const newExpenses = pending.map(f => ({
+      return {
         id: crypto.randomUUID(), desc: f.desc, amount: f.amount, cat: f.cat, note: f.note,
         date: `${monthPrefix}-${String(Math.min(f.day, lastDayOfMonth(y, m))).padStart(2,'0')}`,
         fixed_expense_id: f.id,
-      }));
+      };
+    }
+
+    async function generatePendingFixedExpenses() {
+      const today  = new Date();
+      const curDay = today.getDate();
+
+      const pending = fixedExpenses.filter(f => f.day <= curDay && !hasCurrentMonthExpense(f.id));
+      if (!pending.length) return;
+
+      const newExpenses = pending.map(buildCurrentMonthExpense);
       await dbInsertExpenses(newExpenses);
       expenses.unshift(...newExpenses);
     }
@@ -1050,11 +1057,18 @@
     }
 
     async function removeFixedExpense(id) {
-      if (!confirm('¿Eliminar esta cuota fija? Los gastos ya generados no se eliminarán.')) return;
+      if (!confirm('¿Eliminar esta cuota fija? El gasto de este mes se mantiene; solo se dejan de generar los futuros.')) return;
       try {
+        const fixed = fixedExpenses.find(f => f.id === id);
+        if (fixed && !hasCurrentMonthExpense(id)) {
+          const expense = buildCurrentMonthExpense(fixed);
+          await dbInsertExpenses([expense]);
+          expenses.unshift(expense);
+        }
         await dbDeactivateFixedExpense(id);
         fixedExpenses = fixedExpenses.filter(f => f.id !== id);
         renderFixedList();
+        renderAll(currentMonth);
         showToast('Cuota fija eliminada');
       } catch (err) {
         console.error(err);
